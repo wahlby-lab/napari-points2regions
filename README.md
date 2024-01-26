@@ -3,7 +3,6 @@
 [![License MIT](https://img.shields.io/pypi/l/napari-points2regions.svg?color=green)](https://github.com/wahlby-lab/napari-points2regions/raw/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/napari-points2regions.svg?color=green)](https://pypi.org/project/napari-points2regions)
 [![Python Version](https://img.shields.io/pypi/pyversions/napari-points2regions.svg?color=green)](https://python.org)
-[![tests](https://github.com/wahlby-lab/napari-points2regions/workflows/tests/badge.svg)](https://github.com/wahlby-lab/napari-points2regions/actions)
 [![codecov](https://codecov.io/gh/wahlby-lab/napari-points2regions/branch/main/graph/badge.svg)](https://codecov.io/gh/wahlby-lab/napari-points2regions)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-points2regions)](https://napari-hub.org/plugins/napari-points2regions)
 
@@ -36,8 +35,7 @@ To install latest development version :
 
 ## Contributing
 
-Contributions are very welcome. Tests can be run with [tox], please ensure
-the coverage at least stays the same before you submit a pull request.
+Contributions are very welcome.
 
 ## License
 
