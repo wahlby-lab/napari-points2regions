@@ -1,27 +1,21 @@
 name: napari-points2regions
 display_name: Points2Regions
-# use 'hidden' to remove plugin from napari hub search results
-visibility: public
-# see https://napari.org/stable/plugins/manifest.html for valid categories
-categories: ["Annotation", "Segmentation", "Acquisition"]
+categories: ["Annotation", "Segmentation"]
 contributions:
   commands:
-    - id: napari-points2regions.make_container_widget
-      python_name: napari_points2regions:ImageThreshold
-      title: Make threshold Container widget
-    - id: napari-points2regions.make_magic_widget
-      python_name: napari_points2regions:threshold_magic_widget
-      title: Make threshold magic widget
-    - id: napari-points2regions.make_function_widget
-      python_name: napari_points2regions:threshold_autogenerate_widget
-      title: Make threshold function widget
+    - id: napari-points2regions.load_points
+      title: Load points
+      python_name: napari_points2regions:load_points
+    - id: napari-points2regions.points2regions
+      title: Points2Regions
+      python_name: napari_points2regions:points2regions
+    - id: napari-points2regions.adjust_point_display
+      title: Adjust point display
+      python_name: napari_points2regions:adjust_point_display
   widgets:
-    - command: napari-points2regions.make_container_widget
-      display_name: Container Threshold
-    - command: napari-points2regions.make_magic_widget
-      display_name: Magic Threshold
-    - command: napari-points2regions.make_function_widget
-      autogenerate: true
-      display_name: Autogenerate Threshold
-    - command: napari-points2regions.make_qwidget
-      display_name: Example QWidget
+    - command: napari-points2regions.load_points
+      display_name: Load points
+    - command: napari-points2regions.points2regions
+      display_name: Points2Regions
+    - command: napari-points2regions.adjust_point_display
+      display_name: Adjust point display

@@ -2,16 +2,7 @@ try:
     from ._version import version as __version__
 except ImportError:
     __version__ = "unknown"
-from ._widget import (
-    ExampleQWidget,
-    ImageThreshold,
-    threshold_autogenerate_widget,
-    threshold_magic_widget,
-)
 
-__all__ = (
-    "ExampleQWidget",
-    "ImageThreshold",
-    "threshold_autogenerate_widget",
-    "threshold_magic_widget",
-)
+from ._widget import adjust_point_display, load_points, points2regions
+
+__all__ = ("adjust_point_display", "load_points", "points2regions")
