@@ -34,7 +34,7 @@ _DEFAULT_POINT_SIZE = 10
 
 
 def _on_load_points_widget_init(widget):
-    def on_csv_file_changed(csv_file):
+    def refresh_columns(csv_file):
         if (
             csv_file is not None
             and csv_file.is_file()
@@ -79,6 +79,9 @@ def _on_load_points_widget_init(widget):
         if label_column is not None:
             widget.label_column.value = label_column
         widget.dataset_column.value = dataset_column
+
+    def on_csv_file_changed(csv_file):
+        refresh_columns(csv_file)
 
     on_csv_file_changed(widget.csv_file.value)
     widget.csv_file.changed.connect(on_csv_file_changed)
@@ -140,15 +143,16 @@ def _on_points2regions_widget_init(widget):
             widget.label_feature.value = label_feature
         widget.dataset_feature.value = dataset_feature
 
-    @widget.points_layer.changed.connect
     def on_points_layer_changed(points_layer):
         refresh_features(points_layer)
         if points_layer is not None:
             points_layer.events.features.connect(
+                # always use latest value of widget.points_layer!
                 lambda event: refresh_features(widget.points_layer.value)
             )
 
     on_points_layer_changed(widget.points_layer.value)
+    widget.points_layer.changed.connect(on_points_layer_changed)
 
 
 @magic_factory(widget_init=_on_points2regions_widget_init, call_button="Run")
@@ -209,15 +213,16 @@ def _on_adjust_point_display_widget_init(widget):
         if region_feature is not None:
             widget.region_feature.value = region_feature
 
-    @widget.points_layer.changed.connect
     def on_points_layer_changed(points_layer):
         refresh_features(points_layer)
         if points_layer is not None:
             points_layer.events.features.connect(
+                # always use latest value of widget.points_layer!
                 lambda event: refresh_features(widget.points_layer.value)
             )
 
     on_points_layer_changed(widget.points_layer.value)
+    widget.points_layer.changed.connect(on_points_layer_changed)
 
 
 @magic_factory(
