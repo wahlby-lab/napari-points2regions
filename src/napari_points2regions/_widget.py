@@ -5,6 +5,7 @@ import colorcet as cc
 import numpy as np
 import pandas as pd
 from magicgui import magic_factory
+from napari.layers.utils.layer_utils import features_to_pandas_dataframe
 from napari.utils.notifications import show_warning
 from points2regions import Points2Regions
 
@@ -32,15 +33,19 @@ _DEFAULT_SEED = 42
 
 _DEFAULT_POINT_SIZE = 10
 
+_DEFAULT_CSV_FILE = Path().home() / "features.csv"
+
 
 def _on_load_points_widget_init(widget):
-    def refresh_columns(csv_file):
+    def on_csv_file_changed(csv_file):
         if (
             csv_file is not None
             and csv_file.is_file()
             and csv_file.suffix.lower() == ".csv"
         ):
             columns = pd.read_csv(csv_file, nrows=0).columns
+            if widget.new_layer_name.value == _DEFAULT_LAYER_NAME:
+                widget.new_layer_name.value = csv_file.stem
         else:
             columns = []
         x_column = None
@@ -80,9 +85,6 @@ def _on_load_points_widget_init(widget):
             widget.label_column.value = label_column
         widget.dataset_column.value = dataset_column
 
-    def on_csv_file_changed(csv_file):
-        refresh_columns(csv_file)
-
     on_csv_file_changed(widget.csv_file.value)
     widget.csv_file.changed.connect(on_csv_file_changed)
 
@@ -90,11 +92,19 @@ def _on_load_points_widget_init(widget):
 @magic_factory(widget_init=_on_load_points_widget_init, call_button="Load")
 def load_points(
     csv_file: Annotated[Path, {"mode": "r", "filter": "*.csv"}],
-    x_column: Annotated[str, {"widget_type": "ComboBox"}],
-    y_column: Annotated[str, {"widget_type": "ComboBox"}],
-    label_column: Annotated[str, {"widget_type": "ComboBox"}],
-    dataset_column: Annotated[Optional[str], {"widget_type": "ComboBox"}],
-    new_layer_name: str = _DEFAULT_LAYER_NAME,
+    x_column: Annotated[
+        str, {"widget_type": "ComboBox"}
+    ],  # see _on_load_points_widget_init
+    y_column: Annotated[
+        str, {"widget_type": "ComboBox"}
+    ],  # see _on_load_points_widget_init
+    label_column: Annotated[
+        str, {"widget_type": "ComboBox"}
+    ],  # see _on_load_points_widget_init
+    dataset_column: Annotated[
+        Optional[str], {"widget_type": "ComboBox"}
+    ],  # see _on_load_points_widget_init
+    new_layer_name: str = _DEFAULT_LAYER_NAME,  # see _on_load_points_widget_init
     new_label_feature: str = _DEFAULT_LABEL_FEATURE,
     new_dataset_feature: str = _DEFAULT_DATASET_FEATURE,
 ) -> "napari.types.LayerDataTuple":
@@ -114,16 +124,14 @@ def load_points(
         "features": features,
         "size": _DEFAULT_POINT_SIZE,
         "edge_width": 0,
+        "metadata": {"csv_file": csv_file},
     }
     return (points, layer_args, "points")
 
 
 def _on_points2regions_widget_init(widget):
-    def refresh_features(points_layer):
-        if points_layer is not None:
-            features = list(points_layer.features.columns)
-        else:
-            features = []
+    def refresh_features(layer):
+        features = list(layer.features.columns) if layer is not None else []
         label_feature = None
         dataset_feature = None
         remaining_features = list(features)
@@ -143,38 +151,42 @@ def _on_points2regions_widget_init(widget):
             widget.label_feature.value = label_feature
         widget.dataset_feature.value = dataset_feature
 
-    def on_points_layer_changed(points_layer):
-        refresh_features(points_layer)
-        if points_layer is not None:
-            points_layer.events.features.connect(
-                # always use latest value of widget.points_layer!
-                lambda event: refresh_features(widget.points_layer.value)
+    def on_layer_changed(layer):
+        refresh_features(layer)
+        if layer is not None:
+            layer.events.features.connect(
+                # always use latest value of widget.layer!
+                lambda event: refresh_features(widget.layer.value)
             )
 
-    on_points_layer_changed(widget.points_layer.value)
-    widget.points_layer.changed.connect(on_points_layer_changed)
+    on_layer_changed(widget.layer.value)
+    widget.layer.changed.connect(on_layer_changed)
 
 
 @magic_factory(widget_init=_on_points2regions_widget_init, call_button="Run")
 def points2regions(
-    points_layer: "napari.layers.Points",
-    label_feature: Annotated[str, {"widget_type": "ComboBox"}],
-    dataset_feature: Annotated[Optional[str], {"widget_type": "ComboBox"}],
-    new_region_feature: str = _DEFAULT_REGION_FEATURE,
+    layer: "napari.layers.Points",
+    label_feature: Annotated[
+        str, {"widget_type": "ComboBox"}
+    ],  # see _on_points2regions_widget_init
+    dataset_feature: Annotated[
+        Optional[str], {"widget_type": "ComboBox"}
+    ],  # see _on_points2regions_widget_init
     num_clusters: int = _DEFAULT_NUM_CLUSTERS,
     pixel_width: float = _DEFAULT_PIXEL_WIDTH,
     pixel_smoothing: float = _DEFAULT_PIXEL_SMOOTHING,
     min_num_pts_per_pixel: float = _DEFAULT_MIN_NUM_PTS_PER_PIXEL,
     seed: int = _DEFAULT_SEED,
+    new_region_feature: str = _DEFAULT_REGION_FEATURE,
 ):
     p2r = Points2Regions(
-        xy=points_layer.data,
-        labels=points_layer.features[label_feature],
+        xy=layer.data,
+        labels=layer.features[label_feature],
         pixel_width=pixel_width,
         pixel_smoothing=pixel_smoothing,
         min_num_pts_per_pixel=min_num_pts_per_pixel,
         datasetids=(
-            points_layer.features[dataset_feature]
+            layer.features[dataset_feature]
             if dataset_feature is not None
             else None
         ),
@@ -185,21 +197,18 @@ def points2regions(
         output="marker",
     )
     regions = (regions + 1).astype(np.uint32)
-    new_features = points_layer.features
+    new_features = layer.features
     new_features[new_region_feature] = regions
-    points_layer.features = new_features  # setter updates color manager
-    points_layer.face_color_cycle = _CMAP
-    points_layer.face_color = new_region_feature
-    if points_layer.features[new_region_feature].nunique() > len(_CMAP):
+    layer.features = new_features  # setter updates color manager
+    layer.face_color_cycle = _CMAP
+    layer.face_color = new_region_feature
+    if layer.features[new_region_feature].nunique() > len(_CMAP):
         show_warning("Identified more regions than available colors")
 
 
 def _on_adjust_point_display_widget_init(widget):
-    def refresh_features(points_layer):
-        if points_layer is not None:
-            features = list(points_layer.features.columns)
-        else:
-            features = []
+    def refresh_features(layer):
+        features = list(layer.features.columns) if layer is not None else []
         region_feature = None
         remaining_features = list(features)
         for feature in features:
@@ -213,27 +222,66 @@ def _on_adjust_point_display_widget_init(widget):
         if region_feature is not None:
             widget.region_feature.value = region_feature
 
-    def on_points_layer_changed(points_layer):
-        refresh_features(points_layer)
-        if points_layer is not None:
-            points_layer.events.features.connect(
-                # always use latest value of widget.points_layer!
-                lambda event: refresh_features(widget.points_layer.value)
+    def on_layer_changed(layer):
+        refresh_features(layer)
+        if layer is not None:
+            layer.events.features.connect(
+                # always use latest value of widget.layer!
+                lambda event: refresh_features(widget.layer.value)
             )
 
-    on_points_layer_changed(widget.points_layer.value)
-    widget.points_layer.changed.connect(on_points_layer_changed)
+    on_layer_changed(widget.layer.value)
+    widget.layer.changed.connect(on_layer_changed)
 
 
 @magic_factory(
     widget_init=_on_adjust_point_display_widget_init, call_button="Adjust"
 )
 def adjust_point_display(
-    points_layer: "napari.layers.Points",
-    region_feature: Annotated[str, {"widget_type": "ComboBox"}],
+    layer: "napari.layers.Points",
+    region_feature: Annotated[
+        str, {"widget_type": "ComboBox"}
+    ],  # see _on_adjust_point_display_widget_init
     point_size: int = _DEFAULT_POINT_SIZE,
-) -> None:
-    points_layer.size = point_size
-    points_layer.face_color = region_feature
-    if points_layer.features[region_feature].nunique() > len(_CMAP):
+):
+    layer.size = point_size
+    layer.face_color = region_feature
+    if layer.features[region_feature].nunique() > len(_CMAP):
         show_warning("Identified more regions than available colors")
+
+
+def _on_export_point_features_widget_init(widget):
+    def on_layer_changed(layer):
+        if (
+            layer is not None
+            and widget.new_csv_file.value == _DEFAULT_CSV_FILE
+        ):
+            orig_csv_file = layer.metadata.get("csv_file")
+            if orig_csv_file is not None:
+                widget.new_csv_file.value = orig_csv_file.with_name(
+                    f"{orig_csv_file.stem}_features.csv"
+                )
+            else:
+                widget.new_csv_file.value = (
+                    widget.new_csv_file.value.with_name(
+                        f"{layer.name}_features.csv"
+                    )
+                )
+
+    on_layer_changed(widget.layer.value)
+    widget.layer.changed.connect(on_layer_changed)
+
+
+@magic_factory(
+    widget_init=_on_export_point_features_widget_init, call_button="Export"
+)
+def export_point_features(
+    layer: "napari.layers.Points",
+    new_csv_file: Annotated[
+        Path, {"mode": "w", "filter": "*.csv"}
+    ] = _DEFAULT_CSV_FILE,  # see _on_export_point_features_widget_init
+):
+    df = features_to_pandas_dataframe(layer.features).copy()
+    df.insert(0, "x", layer.data[:, 1])
+    df.insert(1, "y", layer.data[:, 0])
+    df.to_csv(new_csv_file, index=False)

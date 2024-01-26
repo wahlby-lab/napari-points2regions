@@ -8,3 +8,7 @@ def test_points2regions(make_napari_viewer):
 
 def test_adjust_point_display(make_napari_viewer):
     pass  # TODO test adjust_point_display
+
+
+def test_export_point_features(make_napari_viewer):
+    pass  # TODO test export_point_features
